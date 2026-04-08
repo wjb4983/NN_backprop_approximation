@@ -1,0 +1,8 @@
+name: "adamw_cosine"
+lr: 0.001
+weight_decay: 0.01
+momentum: 0.0
+schedule: "cosine"
+schedule_params:
+  t_max: 200
+  eta_min: 0.00001

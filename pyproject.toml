@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "learned-opt-bench"
+version = "0.1.0"
+description = "Stage 0 benchmark framing and evaluation harness for learned-optimizer R&D"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "PyYAML>=6.0",
+  "numpy>=1.24",
+  "torch>=2.1",
+  "torchvision>=0.16"
+]
+
+[project.scripts]
+bench-run = "bench.cli:main"
+bench-tune = "bench.tuning_cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

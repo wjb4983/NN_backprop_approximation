@@ -1,0 +1,7 @@
+name: "tabular_synth"
+family: "tabular_synth_family"
+params:
+  n_samples: 8000
+  n_features: 24
+  n_classes: 4
+  hidden_dim: 128
