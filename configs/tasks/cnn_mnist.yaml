@@ -1,0 +1,6 @@
+name: "cnn_mnist"
+family: "vision_mnist_family"
+params:
+  dataset_root: "./data"
+  channels: 16
+  # split/batch params are inherited from run config unless overridden

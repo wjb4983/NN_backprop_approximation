@@ -1,0 +1,16 @@
+experiment_name: "stage0_baseline"
+seed: 42
+device: "cpu"
+max_steps: 200
+eval_every: 20
+threshold_metric: "accuracy"
+threshold_value: 0.90
+threshold_mode: "max"
+early_window_steps: 100
+log_dir: "./outputs"
+batch_size: 128
+val_batch_size: 256
+num_workers: 0
+train_fraction: 0.7
+val_fraction: 0.15
+test_fraction: 0.15
