@@ -1,0 +1,7 @@
+name: "cnn_mnist"
+family: "vision_mnist_family"
+params:
+  dataset_root: "./data"
+  channels: 24
+  num_blocks: 3
+  fc_hidden: 192
