@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from dataclasses import asdict
 from pathlib import Path
 
@@ -60,9 +61,13 @@ def run_experiment(cfg: ExperimentConfig) -> dict:
                 x = x.to(device)
                 y = y.to(device)
 
+                step_t0 = time.perf_counter()
                 optimizer.zero_grad(set_to_none=True)
+
+                fw_t0 = time.perf_counter()
                 logits = model(x)
                 loss = bundle.criterion(logits, y)
+                fw_ms = (time.perf_counter() - fw_t0) * 1000.0
 
                 loss_value = float(loss.item())
                 if not math.isfinite(loss_value):
@@ -71,10 +76,17 @@ def run_experiment(cfg: ExperimentConfig) -> dict:
                 if hasattr(optimizer, "update_loss"):
                     optimizer.update_loss(loss_value)
 
+                bw_t0 = time.perf_counter()
                 loss.backward()
+                bw_ms = (time.perf_counter() - bw_t0) * 1000.0
+
+                opt_t0 = time.perf_counter()
                 optimizer.step()
+                opt_ms = (time.perf_counter() - opt_t0) * 1000.0
                 if scheduler is not None:
                     scheduler.step()
+
+                step_ms = (time.perf_counter() - step_t0) * 1000.0
 
                 step += 1
 
@@ -84,12 +96,20 @@ def run_experiment(cfg: ExperimentConfig) -> dict:
                     test_metrics = evaluate_model(model, bundle.test_loader, bundle.criterion, device)
 
                     optimizer_diagnostics = optimizer.get_diagnostics() if hasattr(optimizer, "get_diagnostics") else {}
+                    step_profile = {
+                        "forward_ms": float(fw_ms),
+                        "backward_ms": float(bw_ms),
+                        "optimizer_ms": float(opt_ms),
+                        "step_ms": float(step_ms),
+                        "optimizer_share": float(opt_ms / max(step_ms, 1e-12)),
+                    }
                     record = {
                         "step": step,
                         "train": train_metrics,
                         "val": val_metrics,
                         "test": test_metrics,
                         "lr": optimizer.param_groups[0]["lr"],
+                        "step_profile": step_profile,
                         "optimizer_diagnostics": optimizer_diagnostics,
                     }
                     logger.log(record)

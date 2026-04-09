@@ -1,0 +1,10 @@
+name: learned_hybrid
+lr: 0.001
+weight_decay: 0.01
+momentum: 0.0
+schedule: null
+schedule_params: {}
+extra_params:
+  temporal_on: false
+  gating_on: true
+  trust_modulation_on: true

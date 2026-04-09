@@ -14,21 +14,44 @@ from .base import TaskBundle
 
 
 class SmallCNN(nn.Module):
-    """Compact CNN used for quick benchmark iterations."""
+    """Compact CNN used for quick benchmark iterations.
 
-    def __init__(self, channels: int = 16) -> None:
+    Stage 2 adds optional depth/width scaling for a larger CNN variant while
+    keeping the same task API and dataset.
+    """
+
+    def __init__(self, channels: int = 16, num_blocks: int = 2, fc_hidden: int = 128) -> None:
         super().__init__()
+        if num_blocks < 2:
+            raise ValueError("num_blocks must be >= 2 to preserve final feature map size assumptions")
+
+        blocks: list[nn.Module] = []
+        in_ch = 1
+        cur_ch = channels
+        for block_idx in range(num_blocks):
+            blocks.extend(
+                [
+                    nn.Conv2d(in_ch, cur_ch, kernel_size=3, padding=1),
+                    nn.ReLU(),
+                    nn.Conv2d(cur_ch, cur_ch, kernel_size=3, padding=1),
+                    nn.ReLU(),
+                    nn.MaxPool2d(2),
+                ]
+            )
+            in_ch = cur_ch
+            if block_idx < num_blocks - 1:
+                cur_ch = min(cur_ch * 2, channels * 4)
+
+        spatial = 28 // (2**num_blocks)
+        if spatial <= 0:
+            raise ValueError("num_blocks too large for 28x28 MNIST input")
+
         self.net = nn.Sequential(
-            nn.Conv2d(1, channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(channels, channels * 2, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
+            *blocks,
             nn.Flatten(),
-            nn.Linear((channels * 2) * 7 * 7, 128),
+            nn.Linear(in_ch * spatial * spatial, fc_hidden),
             nn.ReLU(),
-            nn.Linear(128, 10),
+            nn.Linear(fc_hidden, 10),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -87,7 +110,11 @@ def build_task(params: dict, base_seed: int, family: str) -> TaskBundle:
     )
 
     return TaskBundle(
-        model=SmallCNN(channels=params.get("channels", 16)),
+        model=SmallCNN(
+            channels=params.get("channels", 16),
+            num_blocks=params.get("num_blocks", 2),
+            fc_hidden=params.get("fc_hidden", 128),
+        ),
         train_loader=train_loader,
         val_loader=val_loader,
         test_loader=test_loader,
