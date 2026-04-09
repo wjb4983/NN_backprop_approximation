@@ -64,8 +64,12 @@ def run_experiment(cfg: ExperimentConfig) -> dict:
                 logits = model(x)
                 loss = bundle.criterion(logits, y)
 
-                if not math.isfinite(float(loss.item())):
-                    raise RunFailure(f"Non-finite loss at step={step}: {loss.item()}")
+                loss_value = float(loss.item())
+                if not math.isfinite(loss_value):
+                    raise RunFailure(f"Non-finite loss at step={step}: {loss_value}")
+
+                if hasattr(optimizer, "update_loss"):
+                    optimizer.update_loss(loss_value)
 
                 loss.backward()
                 optimizer.step()
@@ -79,12 +83,14 @@ def run_experiment(cfg: ExperimentConfig) -> dict:
                     val_metrics = evaluate_model(model, bundle.val_loader, bundle.criterion, device)
                     test_metrics = evaluate_model(model, bundle.test_loader, bundle.criterion, device)
 
+                    optimizer_diagnostics = optimizer.get_diagnostics() if hasattr(optimizer, "get_diagnostics") else {}
                     record = {
                         "step": step,
                         "train": train_metrics,
                         "val": val_metrics,
                         "test": test_metrics,
                         "lr": optimizer.param_groups[0]["lr"],
+                        "optimizer_diagnostics": optimizer_diagnostics,
                     }
                     logger.log(record)
                     summary["train_eval"].append({"step": step, **train_metrics, "wall_clock_sec": logger.elapsed})
@@ -109,12 +115,17 @@ def run_experiment(cfg: ExperimentConfig) -> dict:
         threshold=cfg.run.threshold_value,
         mode=cfg.run.threshold_mode,
     )
+    fallback_events = 0
+    if hasattr(optimizer, "get_diagnostics"):
+        fallback_events = int(optimizer.get_diagnostics().get("fallback_events", 0))
+
     summary["metrics"] = {
         "steps_to_threshold": threshold.steps_to_threshold,
         "wall_clock_to_threshold": threshold.wall_clock_to_threshold,
         "auc_early_window": auc_early(val_values, val_steps, cfg.run.early_window_steps),
         "final_metric_at_budget": final_metric_at_budget(val_values),
-        "instability_failure_count": int(bool(summary["failure"])),
+        "instability_failure_count": int(bool(summary["failure"])) + fallback_events,
+        "fallback_events": fallback_events,
     }
 
     summary_path = run_dir / "summary.json"

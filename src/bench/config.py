@@ -33,6 +33,7 @@ class OptimizerConfig:
     momentum: float = 0.0
     schedule: str | None = None
     schedule_params: dict[str, Any] = field(default_factory=dict)
+    extra_params: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

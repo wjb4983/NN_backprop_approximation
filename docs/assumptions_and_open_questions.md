@@ -1,13 +1,14 @@
 # Assumptions and Open Questions
 
 ## Assumptions
-- Stage 0 prioritizes harness correctness and reproducibility over SOTA model quality.
-- CPU-only execution is acceptable for sanity checks and CI-style validation.
-- Deterministic family-based splitting is sufficient for fair optimizer comparisons.
-- Validation metric threshold (`threshold_metric`, `threshold_value`) is task-specific and configurable.
+- Stage 1 prioritizes a stable prototype over aggressive meta-optimization performance.
+- The learned controller starts close to AdamW behavior via bounded outputs around 1.0.
+- Fallback-to-AdamW behavior is preferable to hard failure for early experimentation.
+- Lightweight imitation pretraining is acceptable as initialization before full trajectory imitation is implemented.
 
 ## Open questions
-- Should Stage 1 add robust multi-seed aggregation and confidence intervals by default?
-- Should wall-clock normalization include data-loading warmup exclusion?
-- Do we require a strict wall-clock budget in addition to step budget for fairness?
-- Which canonical task suite (vision, tabular, time-series) should be frozen for longitudinal tracking?
+- Should fallback trigger on additional criteria (e.g., moving-average loss spikes)?
+- What is the best trust-multiplier bound schedule across training phases?
+- Should layer metadata include richer structural features (residual block ids, attention heads)?
+- When implementing full truncated unroll, should we optimize for validation loss or threshold-oriented reward proxies?
+- What minimum multi-seed count is required before claiming stability improvements?

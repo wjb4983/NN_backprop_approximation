@@ -6,6 +6,7 @@ from torch import nn, optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from ..config import OptimizerConfig
+from .learned_hybrid import build_learned_hybrid_optimizer
 
 
 def build_optimizer(model: nn.Module, cfg: OptimizerConfig, max_steps: int):
@@ -19,6 +20,8 @@ def build_optimizer(model: nn.Module, cfg: OptimizerConfig, max_steps: int):
         optimizer = optim.SGD(params, lr=cfg.lr, momentum=cfg.momentum, weight_decay=cfg.weight_decay)
     elif name in {"adamw_cosine", "adamw+cosine"}:
         optimizer = optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+    elif name in {"learned_hybrid", "learned_adamw_hybrid"}:
+        optimizer = build_learned_hybrid_optimizer(model, cfg)
     else:
         raise ValueError(f"Unsupported optimizer: {cfg.name}")
 

@@ -1,0 +1,8 @@
+seed: 123
+unroll_steps: 16
+meta_steps: 30
+meta_lr: 0.0005
+task_config: configs/tasks/tabular_synth.yaml
+optimizer_config: configs/optimizers/learned_hybrid.yaml
+run_config: configs/run.yaml
+output_dir: outputs/stage1_meta

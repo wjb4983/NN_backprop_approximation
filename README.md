@@ -50,3 +50,17 @@ Outputs are written to `outputs/<experiment_name>/` with:
 - `summary.json` (aggregate benchmark metrics and failure status)
 
 See `docs/tuning_protocol.md`, `docs/reports/benchmark_report_template.md`, and `docs/assumptions_and_open_questions.md`.
+
+
+## Stage 1 learned optimizer prototype
+
+Stage 1 adds a simplest-working **learned hybrid optimizer** that modulates AdamW with bounded per-layer controller outputs and fallback safety guards.
+
+Quick start:
+
+```bash
+timeout 180s bench-run --task-config configs/tasks/tabular_synth.yaml --optimizer-config configs/optimizers/learned_hybrid.yaml --run-config configs/run.yaml
+timeout 900s bash scripts/run_stage1_learned_optimizer.sh
+```
+
+See `docs/stage1_learned_optimizer.md` and `docs/reports/stage1_result_table_template.md`.

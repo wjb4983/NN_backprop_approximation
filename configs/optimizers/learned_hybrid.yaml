@@ -1,0 +1,18 @@
+name: learned_hybrid
+lr: 0.001
+weight_decay: 0.01
+momentum: 0.0
+schedule: null
+schedule_params: {}
+extra_params:
+  beta1: 0.9
+  beta2: 0.999
+  eps: 1.0e-8
+  controller_hidden_dim: 32
+  lr_scale_bound: 0.35
+  mom_correction_bound: 0.25
+  trust_bound: 0.35
+  max_layer_update_norm: 1.0
+  fallback_steps: 15
+  loss_window: 5
+  controller_pretrained_path: null
