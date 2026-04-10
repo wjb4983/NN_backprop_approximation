@@ -45,6 +45,13 @@ timeout 600s bench-run --task-config configs/tasks/tabular_synth.yaml --optimize
 timeout 600s bench-tune --task-config configs/tasks/tabular_synth.yaml --run-config configs/run.yaml --search-config configs/optimizers/adamw_search.yaml
 ```
 
+## Run full Stage 0 protocol matrix
+
+```bash
+timeout 1800s bash scripts/run_stage0_fair_protocol.sh configs/stage0/fair_baseline_matrix.yaml configs/run.yaml
+timeout 60s python scripts/summarize_stage0_results.py outputs
+```
+
 Outputs are written to `outputs/<experiment_name>/` with:
 - `metrics.jsonl` (step + wall-clock logs)
 - `summary.json` (aggregate benchmark metrics and failure status)
