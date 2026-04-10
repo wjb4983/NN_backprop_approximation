@@ -73,6 +73,41 @@ class UnifiedFeatureExtractor:
         """Return total feature dimension."""
         return self.stats_dim + self.meta_scalar_dim + self.meta_one_hot_dim + self.family_dim
 
+    @property
+    def stats_slice(self) -> slice:
+        return slice(0, self.stats_dim)
+
+    @property
+    def meta_scalar_slice(self) -> slice:
+        start = self.stats_dim
+        return slice(start, start + self.meta_scalar_dim)
+
+    @property
+    def meta_one_hot_slice(self) -> slice:
+        start = self.stats_dim + self.meta_scalar_dim
+        return slice(start, start + self.meta_one_hot_dim)
+
+    @property
+    def family_slice(self) -> slice:
+        start = self.stats_dim + self.meta_scalar_dim + self.meta_one_hot_dim
+        return slice(start, start + self.family_dim)
+
+    def feature_subset_indices(self, subset: str) -> list[int]:
+        """Return feature indices for Stage 4 token-subset ablations."""
+        key = (subset or "all").strip().lower()
+        spans = {
+            "all": [self.stats_slice, self.meta_scalar_slice, self.meta_one_hot_slice, self.family_slice],
+            "stats_only": [self.stats_slice],
+            "stats_meta": [self.stats_slice, self.meta_scalar_slice, self.meta_one_hot_slice],
+            "stats_family": [self.stats_slice, self.family_slice],
+            "meta_only": [self.meta_scalar_slice, self.meta_one_hot_slice],
+        }
+        chosen = spans.get(key, spans["all"])
+        indices: list[int] = []
+        for span in chosen:
+            indices.extend(list(range(span.start, span.stop)))
+        return indices
+
     def _resolve_family_token(self, override: str | None) -> str:
         if override:
             key = override.lower().strip()
