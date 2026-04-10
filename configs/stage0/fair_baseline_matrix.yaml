@@ -1,0 +1,21 @@
+# Stage 0 reproducible baseline matrix.
+# Use with scripts/run_stage0_fair_protocol.sh
+
+task_configs:
+  - configs/tasks/tabular_synth.yaml
+  - configs/tasks/cnn_mnist_small.yaml
+
+optimizer_configs:
+  - configs/optimizers/adamw.yaml
+  - configs/optimizers/sgd_momentum.yaml
+  - configs/optimizers/adamw_cosine.yaml
+
+# Optional search jobs for tuned baseline comparisons.
+search_jobs:
+  - task_config: configs/tasks/tabular_synth.yaml
+    search_config: configs/optimizers/adamw_search.yaml
+
+seeds: [7, 11, 19]
+timeout_seconds:
+  bench_run: 420
+  bench_tune: 600
