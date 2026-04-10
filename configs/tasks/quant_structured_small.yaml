@@ -1,0 +1,8 @@
+name: "quant_structured"
+family: "quant_structured_family"
+params:
+  n_steps: 10000
+  n_factors: 10
+  lookback: 8
+  noise_scale: 0.15
+  hidden_dim: 96

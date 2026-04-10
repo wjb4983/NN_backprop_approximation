@@ -1,0 +1,16 @@
+experiment_name: "stage3_transfer_smoke"
+seed: 42
+device: "cpu"
+max_steps: 40
+eval_every: 10
+threshold_metric: "loss"
+threshold_value: 0.8
+threshold_mode: "min"
+early_window_steps: 40
+log_dir: "outputs"
+batch_size: 64
+val_batch_size: 128
+num_workers: 0
+train_fraction: 0.7
+val_fraction: 0.15
+test_fraction: 0.15
