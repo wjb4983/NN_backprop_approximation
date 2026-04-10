@@ -1,0 +1,40 @@
+protocol_name: stage4_transformer_residual_matrix
+cases:
+  - name: base_only_stage2_mlp
+    task_config: configs/tasks/cnn_mnist_small.yaml
+    optimizer_config: configs/optimizers/learned_hybrid_stage2.yaml
+
+  - name: transformer_base_depth2_width64_all
+    task_config: configs/tasks/cnn_mnist_small.yaml
+    optimizer_config: configs/optimizers/learned_hybrid_stage4_transformer_base.yaml
+
+  - name: transformer_residual_depth2_width64_all
+    task_config: configs/tasks/cnn_mnist_small.yaml
+    optimizer_config: configs/optimizers/learned_hybrid_stage4_transformer_residual.yaml
+
+  - name: transformer_residual_depth1_width32_stats_only
+    task_config: configs/tasks/cnn_mnist_small.yaml
+    optimizer_inline_overrides:
+      extra_params:
+        controller_arch: transformer_tokens
+        transformer_layers: 1
+        transformer_model_dim: 32
+        transformer_heads: 4
+        transformer_ff_dim: 64
+        token_feature_subset: stats_only
+        enable_residual_update: true
+        residual_bound: 0.12
+
+  - name: transformer_residual_depth3_width96_stats_meta
+    task_config: configs/tasks/cnn_mnist_small.yaml
+    optimizer_inline_overrides:
+      extra_params:
+        controller_arch: transformer_tokens
+        transformer_layers: 3
+        transformer_model_dim: 96
+        transformer_heads: 4
+        transformer_ff_dim: 192
+        token_feature_subset: stats_meta
+        enable_residual_update: true
+        residual_bound: 0.15
+        residual_trust_radius: 0.40

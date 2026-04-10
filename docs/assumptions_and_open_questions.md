@@ -27,3 +27,16 @@
 - Do we need per-family normalization statistics instead of global EMA normalization when running mixed-family training curricula?
 - For scale holdouts, should we normalize by parameter count tier more explicitly (e.g., learned scale embeddings)?
 - Should overhead impact report pure optimizer step time from diagnostics in addition to end-to-end wall-clock proxy?
+
+## Stage 4 assumptions
+- Transformer-token controllers can capture richer cross-feature interactions than compact MLP adapters for some model/task niches.
+- Residual direct-update predictors must stay as bounded corrections to safe base updates during initial R&D.
+- Token feature subset ablations are necessary to identify whether metadata tokens justify overhead.
+- Wall-clock overhead must be treated as first-class; step-efficiency gains alone are not sufficient.
+
+## Stage 4 open questions
+- Should transformer controllers be conditioned with explicit layer-position embeddings beyond scalar token indices?
+- Is residual trust radius best as a global scalar or should it be parameterized by module type/family?
+- Which instability metric should gate promotion to Stage 5: fallback events, hard run failures, or both?
+- Should go/no-go criteria include variance across seeds rather than mean-only deltas?
+- Are there specific task families where transformer overhead can be amortized enough to justify productionization?
