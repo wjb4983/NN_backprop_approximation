@@ -56,6 +56,9 @@ class RunConfig:
     train_fraction: float
     val_fraction: float
     test_fraction: float
+    diagnostics_enabled: bool = False
+    diagnostics_checkpoint: str | None = None
+    diagnostics_mc_samples: int = 8
 
 
 @dataclass

@@ -12,6 +12,7 @@ import torch
 
 from .config import ExperimentConfig
 from .logger import JsonlLogger
+from .diagnostics.inference import RuntimeDiagnosticsConfig, RuntimeDiagnosticsHook
 from .metrics import auc_early, final_metric_at_budget, threshold_metrics
 from .optimizers import build_optimizer
 from .tasks import build_task
@@ -43,6 +44,14 @@ def run_experiment(cfg: ExperimentConfig) -> dict:
     run_dir = Path(cfg.run.log_dir) / cfg.run.experiment_name
     run_dir.mkdir(parents=True, exist_ok=True)
     logger = JsonlLogger(run_dir / "metrics.jsonl")
+
+    diagnostics_hook = RuntimeDiagnosticsHook(
+        RuntimeDiagnosticsConfig(
+            enabled=bool(cfg.run.diagnostics_enabled),
+            checkpoint_path=cfg.run.diagnostics_checkpoint,
+            mc_dropout_samples=int(cfg.run.diagnostics_mc_samples),
+        )
+    )
 
     summary: dict = {
         "failure": False,
@@ -112,6 +121,9 @@ def run_experiment(cfg: ExperimentConfig) -> dict:
                         "step_profile": step_profile,
                         "optimizer_diagnostics": optimizer_diagnostics,
                     }
+                    training_diagnostics = diagnostics_hook.predict(record)
+                    if training_diagnostics:
+                        record["training_diagnostics"] = training_diagnostics
                     logger.log(record)
                     summary["train_eval"].append({"step": step, **train_metrics, "wall_clock_sec": logger.elapsed})
                     summary["val_eval"].append({"step": step, **val_metrics, "wall_clock_sec": logger.elapsed})
