@@ -64,3 +64,20 @@ timeout 900s bash scripts/run_stage1_learned_optimizer.sh
 ```
 
 See `docs/stage1_learned_optimizer.md` and `docs/reports/stage1_result_table_template.md`.
+
+## Stage 3 cross-family generalization
+
+Stage 3 adds a unified optimizer feature interface and an adapter-capable learned
+optimizer controller for transfer across model families and scale tiers.
+
+Quick start (bounded):
+
+```bash
+timeout 300s bash scripts/run_stage3_transfer_eval.sh \
+  configs/stage3/splits/family_scale_ood.yaml \
+  configs/stage3/runs/transfer_smoke.yaml \
+  300 42 outputs/stage3_transfer_smoke_summary.json
+```
+
+See `docs/stage3_generalization.md` and
+`docs/reports/stage3_transfer_report_template.md`.

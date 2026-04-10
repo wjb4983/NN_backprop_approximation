@@ -1,0 +1,34 @@
+name: learned_hybrid
+lr: 0.001
+weight_decay: 0.01
+momentum: 0.0
+schedule: null
+schedule_params: {}
+extra_params:
+  beta1: 0.9
+  beta2: 0.999
+  eps: 1.0e-8
+  controller_hidden_dim: 64
+  adapter_hidden_dim: 16
+  temporal_hidden_dim: 32
+  temporal_on: true
+  temporal_encoder_mode: "gru"
+  temporal_window: 4
+  gating_on: true
+  trust_modulation_on: true
+  feature_norm_ema_alpha: 0.05
+  family_vocab: ["vision", "structured", "tabular", "unknown"]
+  model_family: "vision"
+  multiplier_swing_penalty: 0.15
+  control_smoothness: 0.30
+  trust_ratio_min: 0.25
+  trust_ratio_max: 4.0
+  profile_overhead: true
+  overhead_ema_alpha: 0.05
+  lr_scale_bound: 0.30
+  mom_correction_bound: 0.20
+  trust_bound: 0.30
+  max_layer_update_norm: 1.0
+  fallback_steps: 15
+  loss_window: 5
+  controller_pretrained_path: null

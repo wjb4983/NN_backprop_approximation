@@ -1,0 +1,31 @@
+protocol_name: "stage3_family_scale_ood"
+seed: 42
+train_families:
+  - vision_mnist_family
+id_tasks:
+  - name: "cnn_small_id"
+    task_config: "configs/tasks/cnn_mnist_small.yaml"
+    optimizer_config: "configs/optimizers/learned_hybrid_stage3_vision.yaml"
+  - name: "cnn_base_id"
+    task_config: "configs/tasks/cnn_mnist.yaml"
+    optimizer_config: "configs/optimizers/learned_hybrid_stage3_vision.yaml"
+
+holdout_task_families:
+  - quant_structured_family
+ood_family_tasks:
+  - name: "quant_family_holdout"
+    task_config: "configs/tasks/quant_structured.yaml"
+    optimizer_config: "configs/optimizers/learned_hybrid_stage3_structured.yaml"
+
+holdout_architecture_variants:
+  - name: "cnn_arch_variant_holdout"
+    task_config: "configs/tasks/cnn_mnist_large.yaml"
+    optimizer_config: "configs/optimizers/learned_hybrid_stage3_vision.yaml"
+
+holdout_scale_tiers:
+  - name: "cnn_scale_xlarge"
+    task_config: "configs/tasks/cnn_mnist_xlarge.yaml"
+    optimizer_config: "configs/optimizers/learned_hybrid_stage3_vision.yaml"
+  - name: "quant_scale_large"
+    task_config: "configs/tasks/quant_structured_large.yaml"
+    optimizer_config: "configs/optimizers/learned_hybrid_stage3_structured.yaml"

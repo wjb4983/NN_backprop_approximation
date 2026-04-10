@@ -11,7 +11,6 @@ This module keeps Stage 1's conservative safety-first behavior while adding:
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass
 import math
 import time
 from typing import Any
@@ -20,15 +19,7 @@ import torch
 from torch import nn
 from torch.optim import Optimizer
 
-
-@dataclass
-class LayerMeta:
-    """Metadata and static descriptors associated with one parameter tensor."""
-
-    name: str
-    depth: int
-    param_count: int
-    type_id: int
+from .feature_interface import UnifiedFeatureExtractor
 
 
 class TemporalFeatureEncoder(nn.Module):
@@ -85,26 +76,50 @@ class TemporalFeatureEncoder(nn.Module):
         return self.mlp(feature_window.reshape(1, -1)).squeeze(0)
 
 
-class Stage2LayerwiseController(nn.Module):
-    """Controller head that predicts bounded control logits per layer.
+class AdapterBackboneController(nn.Module):
+    """Shared backbone controller with lightweight family adapters.
 
-    Output logits correspond to:
-      0) lr multiplier
-      1) momentum correction
-      2) trust multiplier
-      3) mode gate (AdamW-like vs SGD-like blend)
+    The architecture uses:
+      - shared backbone MLP on unified tensor features,
+      - a small residual adapter per model family,
+      - a shared output head that predicts optimizer controls.
     """
 
-    def __init__(self, encoded_dim: int, hidden_dim: int = 48) -> None:
+    def __init__(
+        self,
+        encoded_dim: int,
+        hidden_dim: int = 64,
+        adapter_dim: int = 16,
+        family_keys: list[str] | None = None,
+    ) -> None:
         super().__init__()
-        self.net = nn.Sequential(
+        self.backbone = nn.Sequential(
             nn.Linear(encoded_dim, hidden_dim),
             nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+        )
+        keys = family_keys or ["vision", "structured", "tabular", "unknown"]
+        self.adapters = nn.ModuleDict(
+            {
+                key: nn.Sequential(
+                    nn.Linear(hidden_dim, adapter_dim),
+                    nn.ReLU(),
+                    nn.Linear(adapter_dim, hidden_dim),
+                )
+                for key in keys
+            }
+        )
+        self.head = nn.Sequential(
+            nn.LayerNorm(hidden_dim),
             nn.Linear(hidden_dim, 4),
         )
 
-    def forward(self, encoded_features: torch.Tensor) -> torch.Tensor:
-        return self.net(encoded_features)
+    def forward(self, encoded_features: torch.Tensor, family_key: str) -> torch.Tensor:
+        trunk = self.backbone(encoded_features)
+        adapter = self.adapters[family_key] if family_key in self.adapters else self.adapters["unknown"]
+        adapted = trunk + adapter(trunk)
+        return self.head(adapted)
 
 
 class LearnedHybridAdamW(Optimizer):
@@ -156,11 +171,16 @@ class LearnedHybridAdamW(Optimizer):
         self._overhead_last_ms = 0.0
         self._overhead_ema_ms = 0.0
 
-        self.layer_meta = self._build_layer_meta(model)
         self._param_order = [name for name, p in model.named_parameters() if p.requires_grad]
-
-        self.type_count = max((meta.type_id for meta in self.layer_meta.values()), default=0) + 1
-        self.input_dim = 9 + self.type_count
+        self.model_family = str(defaults.get("model_family", "unknown")).strip().lower()
+        family_vocab = list(defaults.get("family_vocab", ["vision", "structured", "tabular", "unknown"]))
+        self.feature_extractor = UnifiedFeatureExtractor(
+            model=model,
+            model_family=self.model_family,
+            family_vocab=family_vocab,
+            norm_ema_alpha=float(defaults.get("feature_norm_ema_alpha", 0.05)),
+        )
+        self.input_dim = self.feature_extractor.output_dim
 
         encoder_mode = self.temporal_encoder_mode if self.temporal_on else "off"
         self.temporal_encoder = TemporalFeatureEncoder(
@@ -169,9 +189,11 @@ class LearnedHybridAdamW(Optimizer):
             mode=encoder_mode,
             hidden_dim=int(defaults.get("temporal_hidden_dim", 32)),
         )
-        self.controller = Stage2LayerwiseController(
+        self.controller = AdapterBackboneController(
             encoded_dim=self.temporal_encoder.output_dim,
-            hidden_dim=int(defaults.get("controller_hidden_dim", 48)),
+            hidden_dim=int(defaults.get("controller_hidden_dim", 64)),
+            adapter_dim=int(defaults.get("adapter_hidden_dim", 16)),
+            family_keys=family_vocab,
         )
 
         # Per-parameter control and feature histories for temporal reasoning/smoothing.
@@ -184,26 +206,6 @@ class LearnedHybridAdamW(Optimizer):
         if pretrained_path:
             payload = torch.load(pretrained_path, map_location="cpu")
             self.controller.load_state_dict(payload)
-
-    @staticmethod
-    def _build_layer_meta(model: nn.Module) -> dict[str, LayerMeta]:
-        module_type_to_id: dict[str, int] = {}
-        param_to_meta: dict[str, LayerMeta] = {}
-
-        for module_name, module in model.named_modules():
-            layer_type = module.__class__.__name__
-            if layer_type not in module_type_to_id:
-                module_type_to_id[layer_type] = len(module_type_to_id)
-            for param_name, param in module.named_parameters(recurse=False):
-                full_name = f"{module_name}.{param_name}" if module_name else param_name
-                depth = full_name.count(".") + 1
-                param_to_meta[full_name] = LayerMeta(
-                    name=full_name,
-                    depth=depth,
-                    param_count=param.numel(),
-                    type_id=module_type_to_id[layer_type],
-                )
-        return param_to_meta
 
     def update_loss(self, loss_value: float) -> None:
         """Inject most recent scalar loss for trend feature computation."""
@@ -229,29 +231,19 @@ class LearnedHybridAdamW(Optimizer):
         loss_delta: float,
         loss_trend: float,
     ) -> torch.Tensor:
-        meta = self.layer_meta.get(name)
-        if meta is None:
-            meta = LayerMeta(name=name, depth=1, param_count=1, type_id=0)
-
-        type_one_hot = torch.zeros(self.type_count, dtype=torch.float32)
-        if 0 <= meta.type_id < self.type_count:
-            type_one_hot[meta.type_id] = 1.0
-
-        scalars = torch.tensor(
-            [
-                math.log1p(grad_norm),
-                math.log1p(param_norm),
-                math.log1p(m_mean_abs),
-                math.log1p(v_mean),
-                ratio,
-                loss_delta,
-                loss_trend,
-                float(meta.depth),
-                math.log1p(float(meta.param_count)),
-            ],
-            dtype=torch.float32,
+        return self.feature_extractor.build_feature(
+            name=name,
+            stats={
+                "grad_norm": grad_norm,
+                "param_norm": param_norm,
+                "m_mean_abs": m_mean_abs,
+                "v_mean": v_mean,
+                "grad_to_param_ratio": ratio,
+                "loss_delta": loss_delta,
+                "loss_trend": loss_trend,
+                "update_norm_hint": grad_norm,
+            },
         )
-        return torch.cat([scalars, type_one_hot], dim=0)
 
     def _encode_features(self, name: str, feature: torch.Tensor) -> torch.Tensor:
         history = self._feature_history[name]
@@ -376,7 +368,7 @@ class LearnedHybridAdamW(Optimizer):
 
                 if not used_fallback:
                     encoded = self._encode_features(param_name, features)
-                    raw = self.controller(encoded)
+                    raw = self.controller(encoded, family_key=self.feature_extractor.model_family)
                     controls = self._bounded_controls(raw)
                     controls, swing_penalty, smoothness_penalty = self._regularize_controls(param_name, controls)
                     lr_mult, mom_mult, trust_mult, gate = controls
@@ -470,6 +462,10 @@ class LearnedHybridAdamW(Optimizer):
                     "gating_on": self.gating_on,
                     "trust_modulation_on": self.trust_modulation_on,
                 },
+                "feature_interface": {
+                    "model_family": self.feature_extractor.model_family,
+                    "feature_dim": int(self.input_dim),
+                },
             },
         }
 
@@ -487,8 +483,12 @@ def build_learned_hybrid_optimizer(model: nn.Module, cfg: Any) -> LearnedHybridA
         "beta1": float(extras.get("beta1", 0.9)),
         "beta2": float(extras.get("beta2", 0.999)),
         "eps": float(extras.get("eps", 1e-8)),
-        "controller_hidden_dim": int(extras.get("controller_hidden_dim", 48)),
+        "controller_hidden_dim": int(extras.get("controller_hidden_dim", 64)),
+        "adapter_hidden_dim": int(extras.get("adapter_hidden_dim", 16)),
         "temporal_hidden_dim": int(extras.get("temporal_hidden_dim", 32)),
+        "model_family": str(extras.get("model_family", "unknown")),
+        "family_vocab": list(extras.get("family_vocab", ["vision", "structured", "tabular", "unknown"])),
+        "feature_norm_ema_alpha": float(extras.get("feature_norm_ema_alpha", 0.05)),
         "temporal_on": bool(extras.get("temporal_on", True)),
         "temporal_encoder_mode": str(extras.get("temporal_encoder_mode", "gru")),
         "temporal_window": int(extras.get("temporal_window", 4)),
