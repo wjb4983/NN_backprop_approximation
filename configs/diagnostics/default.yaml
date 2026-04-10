@@ -1,0 +1,14 @@
+metrics_jsonl: outputs/stage0_baseline/metrics.jsonl
+dataset_csv: outputs/diagnostics/labels.csv
+checkpoint: outputs/diagnostics/model.pt
+eval_json: outputs/diagnostics/eval.json
+horizon_steps: 5
+min_delta: 0.001
+noise_multiplier: 1.5
+instability_loss_jump: 0.5
+hp_mismatch_stall_windows: 3
+train:
+  epochs: 30
+  batch_size: 64
+  lr: 0.001
+  seed: 42

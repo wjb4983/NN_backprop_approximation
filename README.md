@@ -81,3 +81,21 @@ timeout 300s bash scripts/run_stage3_transfer_eval.sh \
 
 See `docs/stage3_generalization.md` and
 `docs/reports/stage3_transfer_report_template.md`.
+
+
+## Training diagnostics subsystem
+
+A standalone diagnostics module predicts whether the model is learning and near-term risk signals (stall/instability/hyperparameter mismatch) from training logs.
+
+Quick start (bounded non-interactive pipeline):
+
+```bash
+timeout 600s bash scripts/run_diagnostics_pipeline.sh configs/diagnostics/default.yaml
+```
+
+Live integration into benchmark logs is controlled via run-config keys:
+- `diagnostics_enabled`
+- `diagnostics_checkpoint`
+- `diagnostics_mc_samples`
+
+See `docs/training_diagnostics_subsystem.md` and `docs/reports/diagnostics_report_template.md`.

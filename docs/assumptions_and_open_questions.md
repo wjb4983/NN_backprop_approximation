@@ -40,3 +40,14 @@
 - Which instability metric should gate promotion to Stage 5: fallback events, hard run failures, or both?
 - Should go/no-go criteria include variance across seeds rather than mean-only deltas?
 - Are there specific task families where transformer overhead can be amortized enough to justify productionization?
+
+## Diagnostics subsystem assumptions
+- A separate diagnostics model is preferable initially so optimizer-control policy behavior remains stable and independently testable.
+- Future-window labels from trajectory logs are a valid starting proxy before adding richer run metadata.
+- Probabilistic outputs plus calibration checks are required for actionable stop/restart/tune recommendations.
+
+## Diagnostics subsystem open questions
+- Should stall labeling horizon be fixed globally or adapted by task family and eval cadence?
+- Does practical decision utility improve with cost-sensitive thresholding per experiment budget?
+- Should hyperparameter-mismatch targets be augmented with explicit search-space context from tuning logs?
+- What criteria should gate future joint multi-task training with optimizer-control policy?
